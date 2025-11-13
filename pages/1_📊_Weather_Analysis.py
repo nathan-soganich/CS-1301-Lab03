@@ -33,31 +33,35 @@ st.set_page_config(
 # ==============================================================================
 
 def get_coordinates(city_name):
-    """
-    Convert city name to latitude and longitude using free geocoding
-    
-    Args:
-        city_name (str): Name of the city
-        
-    Returns:
-        tuple: (latitude, longitude, full_location_name) or None
-    """
+    """Use OpenCage API for geocoding"""
+    # Get API key from secrets
     try:
-        geolocator = Nominatim(user_agent="weather_intelligence_hub")
-        location = geolocator.geocode(city_name, timeout=10)
-        
-        if location:
-            return location.latitude, location.longitude, location.address
-        else:
-            return None
+        api_key = st.secrets.get("OPENCAGE_API_KEY", "")
+    except:
+        api_key = ""
+    
+    if api_key:
+        try:
+            url = "https://api.opencagedata.com/geocode/v1/json"
+            params = {
+                "q": city_name,
+                "key": api_key,
+                "limit": 1
+            }
+            response = requests.get(url, params=params, timeout=10)
+            data = response.json()
             
-    except (GeocoderTimedOut, GeocoderServiceError) as e:
-        st.error(f"❌ Geocoding error: {e}")
-        return None
-    except Exception as e:
-        st.error(f"❌ Error finding city: {e}")
-        return None
-
+            if data['results']:
+                result = data['results'][0]
+                lat = result['geometry']['lat']
+                lon = result['geometry']['lng']
+                formatted = result['formatted']
+                return lat, lon, formatted
+        except:
+            pass
+    
+    # Fallback to city database
+    return fallback_city_lookup(city_name)
 def fetch_current_weather(lat, lon, temperature_unit="celsius"):
     """
     Fetch current weather data using Open-Meteo API 
